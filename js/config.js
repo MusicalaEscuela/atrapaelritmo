@@ -1,132 +1,36 @@
-// config.js
-// Configuración central de Atrapa el Ritmo
-
 const CONFIG = {
-  /* =========================
-     AUDIO
-  ========================= */
-  audio: {
-    defaultBPM: 90,
-    minBPM: 70,
-    maxBPM: 140,
-
-    // cuánto sube el tempo con dificultad
-    bpmStep: {
-      easy: 0,
-      normal: 10,
-      hard: 20
-    },
-
-    volume: 0.9
+  title: "Atrapa el Ritmo",
+  subtitle: "Musicala",
+  lanes: [
+    { key: "A", code: "KeyA", color: 0xff6f91, label: "Pulso 1" },
+    { key: "S", code: "KeyS", color: 0xffd166, label: "Pulso 2" },
+    { key: "D", code: "KeyD", color: 0x54d6a2, label: "Pulso 3" },
+    { key: "F", code: "KeyF", color: 0x55a7ff, label: "Pulso 4" }
+  ],
+  difficulties: {
+    easy: { label: "Fácil", bpm: 78, bars: 8, density: 0.55, maxFails: 12, fallDuration: 1.9 },
+    normal: { label: "Normal", bpm: 92, bars: 10, density: 0.72, maxFails: 10, fallDuration: 1.65 },
+    hard: { label: "Difícil", bpm: 112, bars: 12, density: 0.86, maxFails: 8, fallDuration: 1.42 }
   },
-
-  /* =========================
-     TIMING / PRECISIÓN
-  ========================= */
-  timing: {
-    // ventana de acierto (ms)
+  countInBeats: 4,
+  judgeWindowsMs: {
     perfect: 60,
     good: 120,
-    bad: 200,
-
-    // delay visual vs audio (ajustable)
-    visualOffset: 0
+    bad: 180
   },
-
-  /* =========================
-     JUEGO BASE
-  ========================= */
-  gameplay: {
-    maxMisses: 10,
-    targetScore: 100,
-
-    comboMultiplierStep: 10,
-    maxComboMultiplier: 5
-  },
-
-  /* =========================
-     DIFICULTAD
-  ========================= */
-  difficulty: {
-    easy: {
-      speed: 0.8,
-      density: 0.4,
-      patternLength: 4
-    },
-    normal: {
-      speed: 1,
-      density: 0.6,
-      patternLength: 6
-    },
-    hard: {
-      speed: 1.2,
-      density: 0.8,
-      patternLength: 8
-    }
-  },
-
-  /* =========================
-     PATRONES RÍTMICOS
-     (aquí viven las "figuras")
-  ========================= */
-  rhythm: {
-    // resolución base (subdivisiones por pulso)
-    resolution: 8, // permite combinar figuras
-
-    // bloques base (sin decir nombres)
-    basePatterns: [
-      [1, 0, 0, 0],        // largo
-      [1, 0],              // medio
-      [1, 1],              // corto repetido
-      [1, 0, 1, 0],        // alternado
-      [1, 1, 1, 1]         // continuo
-    ],
-
-    // probabilidad de usar patrones más complejos
-    complexityChance: {
-      easy: 0.2,
-      normal: 0.5,
-      hard: 0.8
-    }
-  },
-
-  /* =========================
-     SPAWN / NOTAS
-  ========================= */
-  notes: {
-    // tiempo que tarda en caer una nota (ms)
-    fallDuration: {
-      easy: 1800,
-      normal: 1400,
-      hard: 1000
-    },
-
-    // separación mínima entre notas
-    minSpacing: 120
-  },
-
-  /* =========================
-     SCORING
-  ========================= */
-  scoring: {
+  score: {
     perfect: 100,
     good: 70,
-    bad: 30,
-    miss: -20,
-
-    comboBonus: 10
+    bad: 35
   },
-
-  /* =========================
-     UI / FEEDBACK
-  ========================= */
-  feedback: {
-    messages: {
-      perfect: "Preciso",
-      good: "Bien",
-      bad: "Tarde",
-      miss: "Fallo"
-    }
+  storageKeys: {
+    best: "atrapa_el_ritmo_musicala_best",
+    calibration: "atrapa_el_ritmo_musicala_offset_ms"
+  },
+  game: {
+    width: 960,
+    height: 640,
+    background: "#fff8e8"
   }
 };
 
