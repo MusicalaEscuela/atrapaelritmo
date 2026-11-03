@@ -4,8 +4,8 @@ import { generatePattern } from "./patternGenerator.js";
 import { isMissed, judgeTiming } from "./timingJudge.js";
 
 export default class RhythmEngine {
-  constructor(difficultyKey, calibrationOffsetMs = 0) {
-    this.plan = generatePattern(difficultyKey);
+  constructor(difficultyKey, calibrationOffsetMs = 0, level = 1) {
+    this.plan = generatePattern(difficultyKey, level);
     this.notes = this.plan.notes.map((note) => ({ ...note }));
     this.offsetMs = calibrationOffsetMs;
     this.score = 0;
@@ -24,7 +24,8 @@ export default class RhythmEngine {
     audioEngine.startTimeline({
       bpm: this.plan.bpm,
       countInBeats: CONFIG.countInBeats,
-      totalBeats: this.plan.totalBeats
+      totalBeats: this.plan.totalBeats,
+      notes: this.plan.notes
     });
   }
 
@@ -32,8 +33,8 @@ export default class RhythmEngine {
     audioEngine.stop();
   }
 
-  audioTime() {
-    return audioEngine.timelineTime();
+  audioTime(at) {
+    return audioEngine.timelineTime(at);
   }
 
   visibleNotes(audioTime = this.audioTime()) {
@@ -45,15 +46,15 @@ export default class RhythmEngine {
 
   updateMisses(audioTime = this.audioTime()) {
     for (const note of this.notes) {
-      if (!note.resolved && isMissed(note, audioTime)) {
+      if (!note.resolved && isMissed(note, audioTime + this.offsetMs / 1000)) {
         this.resolveMiss(note);
       }
     }
     this.checkFinished(audioTime);
   }
 
-  hitLane(lane) {
-    const inputAudioTime = this.audioTime() + this.offsetMs / 1000;
+  hitLane(lane, at) {
+    const inputAudioTime = this.audioTime(at) + this.offsetMs / 1000;
     const candidates = this.notes
       .filter((note) => !note.resolved && note.lane === lane)
       .map((note) => ({ note, delta: inputAudioTime - note.targetTime }))
@@ -107,11 +108,11 @@ export default class RhythmEngine {
 
   checkFinished(audioTime = this.audioTime()) {
     if (this.isFinished) return true;
-    const lastTarget = this.notes.length ? this.notes[this.notes.length - 1].targetTime : 0;
+    const songEnd = this.plan.countIn + this.plan.totalBeats * this.plan.beat + 1.1;
     if (this.misses >= this.plan.maxFails) {
       this.isFinished = true;
       this.finishReason = "max-fails";
-    } else if (this.resolved >= this.notes.length || audioTime > lastTarget + 1.2) {
+    } else if (audioTime >= songEnd) {
       this.isFinished = true;
       this.finishReason = "complete";
     }
@@ -120,6 +121,7 @@ export default class RhythmEngine {
 
   snapshot() {
     return {
+      level: this.plan.level,
       score: this.score,
       combo: this.combo,
       maxCombo: this.maxCombo,

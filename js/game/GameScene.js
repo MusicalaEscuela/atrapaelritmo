@@ -1,6 +1,7 @@
+import { usesTouchControls, laneSymbols } from "../ui/device.js";
 import CONFIG from "../config.js";
 import RhythmEngine from "../rhythm/rhythmEngine.js";
-import { getCalibrationOffset } from "../storage/scores.js";
+import { getCalibrationOffset, getUnlockedLevel } from "../storage/scores.js";
 import { hud } from "../ui/hud.js";
 
 export default class GameScene extends Phaser.Scene {
@@ -13,26 +14,45 @@ export default class GameScene extends Phaser.Scene {
 
   create(data) {
     this.difficulty = data.difficulty || "normal";
-    this.engine = new RhythmEngine(this.difficulty, getCalibrationOffset());
+    this.level = Math.max(1, Math.min(getUnlockedLevel(this.difficulty), Number.isSafeInteger(data.level) ? data.level : 1));
+    this.engine = new RhythmEngine(this.difficulty, getCalibrationOffset(), this.level);
     this.noteViews.clear();
     this.hitMarkers = [];
+    this.feedbackLock = false;
+    this.ready = false;
     this.game.events.emit("playing-state", true);
     this.cameras.main.setBackgroundColor("#fff8e8");
     this.layout = this.computeLayout();
     this.createStage();
+    const redraw = () => {
+      this.tweens.killAll();
+      this.feedbackLock = false;
+      this.children.removeAll(true);
+      this.noteViews.clear();
+      this.hitMarkers = [];
+      this.layout = this.computeLayout();
+      this.createStage();
+    };
+    this.scale.on("resize", redraw);
+    this.events.once("shutdown", () => this.scale.off("resize", redraw));
     this.createInput();
     hud.update(this.engine.snapshot());
+    this.events.once("shutdown", () => {
+      this.engine.stop();
+      this.input.keyboard.removeAllListeners("keydown");
+    });
     this.startRun();
   }
 
   async startRun() {
     await this.engine.start();
+    this.ready = true;
   }
 
   computeLayout() {
     const { width, height } = this.scale;
     const top = Math.max(92, height * 0.16);
-    const bottom = height - (width < 700 ? 102 : 54);
+    const bottom = height - (usesTouchControls() ? 112 : 54);
     const laneGap = Math.max(8, width * 0.012);
     const playWidth = Math.min(width - 32, 760);
     const laneWidth = (playWidth - laneGap * 3) / 4;
@@ -51,16 +71,16 @@ export default class GameScene extends Phaser.Scene {
     this.laneGraphics = this.add.graphics();
     CONFIG.lanes.forEach((lane, index) => {
       const x = l.startX + index * (l.laneWidth + l.laneGap);
-      this.laneGraphics.fillStyle(0xffffff, 0.72).fillRoundedRect(x, l.top, l.laneWidth, l.bottom - l.top, 8);
+      this.laneGraphics.fillStyle(0xffffff, 0.86).fillRoundedRect(x, l.top, l.laneWidth, l.bottom - l.top, 8);
       this.laneGraphics.fillStyle(lane.color, 0.12).fillRoundedRect(x + 5, l.top + 5, l.laneWidth - 10, l.bottom - l.top - 10, 8);
-      this.laneGraphics.lineStyle(3, lane.color, 0.28).strokeRoundedRect(x, l.top, l.laneWidth, l.bottom - l.top, 8);
+      this.laneGraphics.lineStyle(3, lane.color, 0.38).strokeRoundedRect(x, l.top, l.laneWidth, l.bottom - l.top, 8);
       this.laneGraphics.fillStyle(lane.color, 0.92).fillRoundedRect(x + 10, l.hitY - 18, l.laneWidth - 20, 36, 8);
 
       const marker = this.add.rectangle(x + l.laneWidth / 2, l.hitY, l.laneWidth - 22, 34, lane.color, 0.18)
         .setStrokeStyle(2, 0xffffff, 0.7);
       this.hitMarkers.push(marker);
 
-      this.add.text(x + l.laneWidth / 2, l.bottom + 18, lane.key, {
+      this.add.text(x + l.laneWidth / 2, l.bottom + 18, usesTouchControls() ? laneSymbols[index] : lane.key, {
         fontSize: "28px",
         color: "#253053",
         fontStyle: "900"
@@ -88,30 +108,33 @@ export default class GameScene extends Phaser.Scene {
   createInput() {
     this.input.keyboard.on("keydown", (event) => {
       const lane = CONFIG.lanes.findIndex((item) => item.code === event.code);
-      if (lane >= 0) this.handleLaneInput(lane);
+      if (event.repeat) return;
+      if (lane >= 0) this.handleLaneInput(lane, event.timeStamp);
     });
   }
 
   update() {
-    if (!this.engine) return;
+    if (!this.engine || !this.ready) return;
     const audioTime = this.engine.audioTime();
     this.engine.updateMisses(audioTime);
     this.renderNotes(audioTime);
     this.renderCountIn(audioTime);
     this.renderBeatPulse(audioTime);
     hud.update(this.engine.snapshot());
+    document.querySelector("#run-progress").style.width = `${100 * this.engine.resolved / this.engine.notes.length}%`;
 
     if (this.engine.isFinished) {
       const results = this.engine.snapshot();
       this.engine.stop();
       this.game.events.emit("playing-state", false);
-      this.scene.start("ResultsScene", { results, difficulty: this.difficulty });
+      this.scene.start("ResultsScene", { results, difficulty: this.difficulty, level: this.level });
     }
   }
 
   renderCountIn(audioTime) {
     const beat = this.engine.plan.beat;
     const countIn = this.engine.plan.countIn;
+    if (audioTime < 0) return;
     if (audioTime < countIn) {
       const count = Math.min(4, Math.floor(audioTime / beat) + 1);
       this.feedbackText.setText(String(count)).setAlpha(1);
@@ -145,11 +168,11 @@ export default class GameScene extends Phaser.Scene {
         view = this.createNoteView(note);
         this.noteViews.set(note.id, view);
       }
-      const progress = Phaser.Math.Clamp((audioTime - note.spawnTime) / this.engine.plan.fallDuration, 0, 1);
+      const progress = Phaser.Math.Clamp((audioTime - note.spawnTime) / this.engine.plan.fallDuration, 0, 1.5);
       const y = Phaser.Math.Linear(this.layout.spawnY, this.layout.hitY, progress);
       view.setY(y);
       view.setAlpha(Phaser.Math.Clamp(progress * 1.3, 0.22, 1));
-      view.setScale(0.88 + progress * 0.16);
+      view.setScale(0.88 + Math.min(progress, 1) * 0.16);
     }
 
     for (const [id, view] of this.noteViews.entries()) {
@@ -168,13 +191,14 @@ export default class GameScene extends Phaser.Scene {
     g.fillStyle(lane.color, 1).fillCircle(0, 0, Math.min(34, this.layout.laneWidth * 0.28));
     g.fillStyle(0xffffff, 0.82).fillCircle(-8, -8, 9);
     g.lineStyle(4, 0xffffff, 0.75).strokeCircle(0, 0, Math.min(39, this.layout.laneWidth * 0.32));
-    c.add([g, this.add.text(0, 1, lane.key, { fontSize: "22px", color: "#253053", fontStyle: "900" }).setOrigin(0.5)]);
+    c.add([g, this.add.text(0, 1, usesTouchControls() ? laneSymbols[note.lane] : lane.key, { fontSize: "22px", color: "#253053", fontStyle: "900" }).setOrigin(0.5)]);
     return c;
   }
 
-  handleLaneInput(lane) {
-    if (!this.engine || this.engine.isFinished) return;
-    const result = this.engine.hitLane(lane);
+  handleLaneInput(lane, at) {
+    if (!this.engine || !this.ready || this.engine.isFinished) return;
+    if (this.engine.audioTime(at) < this.engine.plan.countIn - 0.18) return;
+    const result = this.engine.hitLane(lane, at);
     this.flashLane(lane, result.type);
     this.showFeedback(result);
     if (result.type === "miss") {

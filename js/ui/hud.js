@@ -8,8 +8,11 @@ function setText(name, value) {
 export const hud = {
   setVisible(isVisible) {
     hudRoot?.classList.toggle("hud--hidden", !isVisible);
+    document.querySelector("#level-badge")?.classList.toggle("hud--hidden", !isVisible);
   },
-  update({ score, combo, accuracy, misses }) {
+  update({ score, combo, accuracy, misses, level = 1, difficulty = "" }) {
+    const badge = document.querySelector("#level-badge");
+    if (badge) badge.textContent = `Nivel ${level} · ${difficulty}`;
     setText("score", Math.round(score).toLocaleString("es-CO"));
     setText("combo", `x${combo}`);
     setText("accuracy", `${accuracy}%`);
@@ -21,7 +24,12 @@ export function bindTouchControls(onLane) {
   document.querySelectorAll("[data-lane]").forEach((button) => {
     button.addEventListener("pointerdown", (event) => {
       event.preventDefault();
-      onLane(Number(button.dataset.lane));
+      button.classList.add("is-pressed");
+      button.setPointerCapture(event.pointerId);
+      onLane(Number(button.dataset.lane), event.timeStamp);
+    });
+    ["pointerup", "pointercancel", "lostpointercapture"].forEach(type => {
+      button.addEventListener(type, () => button.classList.remove("is-pressed"));
     });
   });
 }

@@ -1,3 +1,4 @@
+import { levelSettings } from "./levels.js";
 import CONFIG from "../config.js";
 
 const TEMPLATES = {
@@ -78,8 +79,8 @@ function chooseLane({ stepInBar, noteIndex, motif, previousLane, repeatCount }) 
   return lane;
 }
 
-export function generatePattern(difficultyKey) {
-  const difficulty = CONFIG.difficulties[difficultyKey] || CONFIG.difficulties.normal;
+export function generatePattern(difficultyKey, level = 1) {
+  const difficulty = levelSettings(difficultyKey, level);
   const beat = 60 / difficulty.bpm;
   const subdivision = beat / 2;
   const countIn = CONFIG.countInBeats * beat;
@@ -90,8 +91,8 @@ export function generatePattern(difficultyKey) {
 
   for (let bar = 0; bar < difficulty.bars; bar += 1) {
     const section = sectionForBar(bar, difficulty.bars);
-    const template = templateForBar(difficultyKey, section, bar);
-    const motif = motifForBar(section, bar);
+    const template = templateForBar(difficulty.rhythmKey, section, bar + difficulty.variation);
+    const motif = motifForBar(section, bar + difficulty.variation);
 
     template.forEach((stepInBar, noteIndex) => {
       const globalStep = bar * 8 + stepInBar;
@@ -113,6 +114,7 @@ export function generatePattern(difficultyKey) {
   }
 
   return {
+    level: difficulty.level,
     bpm: difficulty.bpm,
     label: difficulty.label,
     maxFails: difficulty.maxFails,

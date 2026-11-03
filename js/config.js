@@ -25,7 +25,7 @@ const CONFIG = {
   },
   storageKeys: {
     best: "atrapa_el_ritmo_musicala_best",
-    calibration: "atrapa_el_ritmo_musicala_offset_ms"
+    calibration: "atrapa_el_ritmo_musicala_tap_offset_v2"
   },
   game: {
     width: 960,

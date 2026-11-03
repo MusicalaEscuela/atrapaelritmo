@@ -1,3 +1,4 @@
+import { audioEngine } from "./audio/audioEngine.js";
 import CONFIG from "./config.js";
 import BootScene from "./game/BootScene.js";
 import MenuScene from "./game/MenuScene.js";
@@ -25,14 +26,23 @@ const gameConfig = {
 
 const game = new Phaser.Game(gameConfig);
 
-bindTouchControls((lane) => {
+bindTouchControls((lane, at) => {
   const scene = game.scene.getScene("GameScene");
   if (scene?.scene?.isActive()) {
-    scene.handleLaneInput(lane);
+    scene.handleLaneInput(lane, at);
   }
 });
 
 game.events.on("playing-state", (isPlaying) => {
   document.body.classList.toggle("is-playing", isPlaying);
   hud.setVisible(isPlaying);
+});
+
+const volumeInput = document.querySelector("#music-volume");
+const volumeValue = document.querySelector("#volume-value");
+volumeInput.value = Math.round(audioEngine.volume * 100);
+volumeValue.value = `${volumeInput.value}%`;
+volumeInput.addEventListener("input", () => {
+  audioEngine.setVolume(Number(volumeInput.value) / 100);
+  volumeValue.value = `${volumeInput.value}%`;
 });

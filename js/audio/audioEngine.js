@@ -1,7 +1,21 @@
+const VOLUME_KEY = "atrapa_ritmo_volume";
+const CHORDS = [
+  [261.63, 329.63, 392, 493.88], // Cmaj7
+  [220, 261.63, 329.63, 392],   // Am7
+  [174.61, 220, 261.63, 329.63], // Fmaj7
+  [196, 246.94, 293.66, 392]   // G
+];
+
 class AudioEngine {
   constructor() {
     this.ctx = null;
     this.master = null;
+    this.output = null;
+    this.volume = 0.85;
+    try {
+      const stored = localStorage.getItem(VOLUME_KEY);
+      if (stored !== null && Number.isFinite(Number(stored))) this.volume = Math.max(0, Math.min(1, Number(stored)));
+    } catch { /* Storage can be unavailable in private browsing. */ }
     this.music = null;
     this.fx = null;
     this.noiseBuffer = null;
@@ -17,7 +31,6 @@ class AudioEngine {
     this.lookahead = 0.12;
     this.energyLevel = 0;
     this.energyDropUntil = 0;
-    this.laneNotes = [523.25, 659.25, 783.99, 1046.5];
   }
 
   async init() {
@@ -27,12 +40,22 @@ class AudioEngine {
       this.master = this.ctx.createGain();
       this.music = this.ctx.createGain();
       this.fx = this.ctx.createGain();
-      this.master.gain.value = 0.74;
-      this.music.gain.value = 0.48;
-      this.fx.gain.value = 0.72;
+      this.master.gain.value = 2.2;
+      const compressor = this.ctx.createDynamicsCompressor();
+      compressor.threshold.value = -14;
+      compressor.knee.value = 18;
+      compressor.ratio.value = 5;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.18;
+      this.output = this.ctx.createGain();
+      this.output.gain.value = this.volume;
+      this.music.gain.value = 0.95;
+      this.fx.gain.value = 0.65;
       this.music.connect(this.master);
       this.fx.connect(this.master);
-      this.master.connect(this.ctx.destination);
+      this.master.connect(compressor);
+      compressor.connect(this.output);
+      this.output.connect(this.ctx.destination);
       this.noiseBuffer = this.createNoiseBuffer();
     }
 
@@ -43,17 +66,30 @@ class AudioEngine {
     return this.ctx;
   }
 
+  setVolume(value) {
+    if (!Number.isFinite(Number(value))) return;
+    this.volume = Math.max(0, Math.min(1, Number(value)));
+    if (this.output) this.output.gain.setTargetAtTime(this.volume, this.now(), 0.025);
+    try { localStorage.setItem(VOLUME_KEY, String(this.volume)); } catch { /* Optional persistence. */ }
+  }
+
+  chordAt(songBeat) {
+    return CHORDS[Math.floor((Math.max(0, songBeat) + 1e-7) / 4) % CHORDS.length];
+  }
+
   now() {
     return this.ctx ? this.ctx.currentTime : 0;
   }
 
-  startTimeline({ bpm, countInBeats, totalBeats }) {
+  startTimeline({ bpm, countInBeats, totalBeats, notes = [] }) {
     this.stop();
     this.bpm = bpm;
     this.beatDuration = 60 / bpm;
     this.countInBeats = countInBeats;
     this.totalBeats = totalBeats;
     this.nextBeatIndex = 0;
+    this.melodyNotes = notes;
+    this.nextNoteIndex = 0;
     this.energyLevel = 0;
     this.energyDropUntil = 0;
     this.startTime = this.now() + 0.08;
@@ -63,9 +99,25 @@ class AudioEngine {
     return this.startTime;
   }
 
-  timelineTime() {
+  // Rendering and judging follow the audio reaching the speakers, not the render-ahead clock.
+  audibleNow(at = performance.now()) {
+    const current = performance.now();
+    if (!Number.isFinite(at) || Math.abs(at - current) > 1000) at = current;
+    const stamp = this.ctx?.getOutputTimestamp?.();
+    let heard;
+    if (stamp && stamp.contextTime > 0 && stamp.performanceTime > 0 && Math.abs(current - stamp.performanceTime) < 1000) {
+      heard = stamp.contextTime + (at - stamp.performanceTime) / 1000;
+    } else {
+      const latency = (this.ctx?.baseLatency || 0) + (this.ctx?.outputLatency || 0);
+      heard = this.now() - latency + (at - current) / 1000;
+    }
+    // DynamicsCompressorNode has a fixed 6 ms look-ahead delay.
+    return Math.min(this.now(), heard) - 0.006;
+  }
+
+  timelineTime(at) {
     if (!this.isPlaying) return 0;
-    return Math.max(0, this.now() - this.startTime);
+    return this.audibleNow(at) - this.startTime;
   }
 
   stop() {
@@ -90,47 +142,83 @@ class AudioEngine {
     while (this.nextBeatIndex < endBeat) {
       const time = this.startTime + this.nextBeatIndex * this.beatDuration;
       if (time > this.now() + this.lookahead) break;
-      this.scheduleBeat(this.nextBeatIndex, time);
+      if (time >= this.now() - 0.025) this.scheduleBeat(this.nextBeatIndex, time);
       this.nextBeatIndex += 1;
+    }
+    while (this.nextNoteIndex < (this.melodyNotes?.length || 0)) {
+      const note = this.melodyNotes[this.nextNoteIndex];
+      const time = this.startTime + note.targetTime;
+      if (time > this.now() + this.lookahead) break;
+      if (time >= this.now() - 0.025) {
+        const songBeat = (note.targetTime / this.beatDuration) - this.countInBeats;
+        this.scheduleBell(time, this.chordAt(songBeat)[note.lane] * 2, 0.95);
+      }
+      this.nextNoteIndex += 1;
     }
   }
 
   scheduleBeat(index, time) {
-    const isCountIn = index < this.countInBeats;
-    const songBeat = Math.max(0, index - this.countInBeats);
-    const beatInBar = songBeat % 4;
-    const energy = this.getEffectiveEnergy();
-
-    if (isCountIn) {
-      this.scheduleBell(time, beatInBar === 0 ? 880 : 660, beatInBar === 0 ? 0.45 : 0.32);
+    if (index < this.countInBeats) {
+      this.scheduleBell(time, index === 0 ? 880 : 660, 0.9);
       return;
     }
-
-    if (beatInBar === 0 || beatInBar === 2) {
-      this.scheduleKick(time, beatInBar === 0 ? 0.82 : 0.55);
-    }
-    if (beatInBar === 1 || beatInBar === 3) {
-      this.scheduleClap(time, energy >= 1 ? 0.42 : 0.28);
-    }
-
-    if (energy >= 1) {
-      this.scheduleHat(time, 0.22);
-      this.scheduleHat(time + this.beatDuration / 2, energy >= 2 ? 0.18 : 0.12);
-    }
-
-    if (energy >= 2) {
-      const bassNotes = [98, 123.47, 110, 146.83];
-      this.scheduleBass(time, bassNotes[beatInBar], beatInBar === 0 ? 0.52 : 0.34);
-    }
-
-    if (energy >= 3) {
-      const melody = [523.25, 659.25, 783.99, 659.25, 880, 783.99, 659.25, 523.25];
-      const note = melody[songBeat % melody.length];
-      this.scheduleBell(time + this.beatDuration * 0.5, note, 0.2);
-      if (beatInBar === 3) {
-        this.scheduleBell(time + this.beatDuration * 0.75, note * 1.25, 0.16);
+    const songBeat = index - this.countInBeats;
+    const beat = songBeat % 4;
+    const bar = Math.floor(songBeat / 4);
+    const totalBars = this.totalBeats / 4;
+    const chord = this.chordAt(songBeat);
+    const energy = this.getEffectiveEnergy();
+    const b = this.beatDuration;
+    // A short tonic coda after the playable phrase.
+    if (songBeat >= this.totalBeats) {
+      if (songBeat === this.totalBeats) {
+        this.scheduleChord(time, CHORDS[0], 0.8, 0.8);
+        this.scheduleBass(time, 130.815, 1);
+        this.scheduleBell(time, 523.26, 0.8);
       }
+      return;
     }
+    const intro = bar < 2;
+    const breakdown = totalBars >= 10 && bar === Math.floor(totalBars / 2);
+    const finale = bar >= totalBars - 2;
+    if (!breakdown || beat === 0) {
+      if (beat === 0 || beat === 2) this.scheduleKick(time, beat === 0 ? 1.25 : 1);
+      if (beat === 1 || beat === 3) this.scheduleClap(time, 1.05);
+      if (!intro && beat === 2) this.scheduleKick(time + b * 0.75, 0.65);
+    }
+    this.scheduleHat(time, beat % 2 ? 0.65 : 0.45);
+    if (!intro && !breakdown) this.scheduleHat(time + b * 0.5, 0.48);
+    // Bass is always present: the song has body even without a combo.
+    this.scheduleBass(time, chord[beat === 2 ? 2 : 0] / 2, beat === 0 ? 1.2 : 0.85);
+    if (beat === 1 || beat === 3) this.scheduleBass(time + b * 0.75, chord[0], 0.55);
+    if (beat === 0) this.scheduleChord(time, chord, intro ? 0.48 : 0.7, b * 1.4);
+    if (!intro && (beat === 1 || beat === 3)) this.scheduleChord(time + b * 0.5, chord, 0.65, b * 0.35);
+    // Playable melody is scheduled from the chart itself in schedulerTick.
+    if (energy >= 2 && beat === 0) this.scheduleChord(time, chord.map(n => n * 2), 0.25, b * 0.6);
+    if (energy >= 1 && !breakdown) this.scheduleHat(time + b * 0.75, 0.28);
+    if (beat === 3 && (bar % 4 === 3 || finale)) {
+      this.scheduleClap(time + b * 0.5, 0.5);
+      this.scheduleClap(time + b * 0.75, 0.65);
+    }
+  }
+
+  scheduleChord(time, notes, intensity = 0.7, duration = 0.3) {
+    notes.forEach((note, index) => {
+      const osc = this.ctx.createOscillator();
+      const filter = this.ctx.createBiquadFilter();
+      const gain = this.createEnvelope(this.music, time, {
+        attack: 0.012, decay: duration, peak: 0.075 * intensity
+      });
+      osc.type = "triangle";
+      osc.frequency.value = note;
+      osc.detune.value = index % 2 ? 4 : -4;
+      filter.type = "lowpass";
+      filter.frequency.value = 2400;
+      osc.connect(filter).connect(gain);
+      osc.start(time);
+      osc.stop(time + duration + 0.06);
+      this.trackNode(osc);
+    });
   }
 
   getEffectiveEnergy() {
@@ -276,20 +364,12 @@ class AudioEngine {
 
   playLaneHit(lane, resultType = "perfect") {
     if (!this.ctx) return;
-    const base = this.laneNotes[lane] || 660;
+    const songBeat = Math.max(0, this.timelineTime() / this.beatDuration - this.countInBeats);
+    const base = this.chordAt(songBeat)[lane] * 2;
     const time = this.now();
-    if (resultType === "perfect") {
-      this.scheduleBell(time, base, 0.46);
-      this.scheduleBell(time + 0.045, base * 1.25, 0.34);
-      this.scheduleBell(time + 0.09, base * 1.5, 0.24);
-      return;
-    }
-    if (resultType === "good") {
-      this.scheduleBell(time, base, 0.34);
-      return;
-    }
-    if (resultType === "bad") {
-      this.scheduleBell(time, base * 0.75, 0.22);
+    if (["perfect", "good", "bad"].includes(resultType)) {
+      // One short accent: avoid the old delayed three-note echo hiding the pulse.
+      this.scheduleBell(time, base, resultType === "perfect" ? 0.22 : 0.12);
       return;
     }
     this.playMiss();
@@ -303,9 +383,9 @@ class AudioEngine {
     const gain = this.createEnvelope(this.fx, time, {
       attack: 0.004,
       decay: 0.11,
-      peak: 0.15
+      peak: 0.045
     });
-    osc.type = "sawtooth";
+    osc.type = "sine";
     osc.frequency.setValueAtTime(170, time);
     osc.frequency.exponentialRampToValueAtTime(92, time + 0.11);
     filter.type = "lowpass";

@@ -157,3 +157,31 @@ body.is-playing .touch-controls {
     font-size: 0.95rem;
   }
 }
+
+/* Arcade pads: symbols match the falling notes on touch screens. */
+.hud__metric { border-radius: 18px; box-shadow: 0 6px 0 rgba(123,97,255,.06), 0 12px 32px rgba(81,91,135,.08); }
+.touch-controls { max-width: 760px; margin-inline: auto; gap: 10px; }
+.touch-controls button { height: 76px; border-radius: 22px; font-size: 30px; transition: transform .08s, background .08s; touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.touch-controls button:nth-child(1) { color: #b82f60; background: #ffe4ed; }
+.touch-controls button:nth-child(2) { color: #8d6200; background: #fff1c9; }
+.touch-controls button:nth-child(3) { color: #147957; background: #d8faec; }
+.touch-controls button:nth-child(4) { color: #2269b5; background: #dfedff; }
+.touch-controls button:active, .touch-controls button.is-pressed { transform: translateY(4px) scale(.96); filter: brightness(1.08); box-shadow: 0 2px 12px rgba(48,57,105,.14); }
+.touch-controls button:focus-visible { outline: 3px solid #7b61ff; outline-offset: 3px; }
+body.is-playing .touch-controls { display: none; }
+@media (pointer: coarse), (hover: none) { body.is-playing .touch-controls { display: grid; } }
+.run-track { display: none; position: fixed; z-index: 6; top: 0; left: 0; right: 0; height: 4px; background: #e7e0fa; }
+body.is-playing .run-track { display: block; }
+#run-progress { height: 100%; width: 0; background: linear-gradient(90deg,#7b61ff,#ff6f91,#ffd166); transition: width .2s; }
+@media (max-height: 480px) { .touch-controls button { height: 48px; } .hud__metric { min-height: 42px; padding: 4px; } }
+
+.volume-control { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); z-index: 10; display: flex; align-items: center; gap: 7px; padding: 8px 12px; border-radius: 20px; background: rgba(255,255,255,.94); color: #253053; font-size: 12px; box-shadow: 0 3px 15px #25305312; }
+.volume-control input { width: 84px; accent-color: #7b61ff; min-height: 24px; }
+.volume-control output { min-width: 30px; }
+body.is-playing .volume-control { top: auto; bottom: max(8px, env(safe-area-inset-bottom)); right: 12px; padding: 2px 10px; }
+@media (pointer: coarse), (hover: none) { body.is-playing .volume-control { bottom: max(98px, calc(env(safe-area-inset-bottom) + 84px)); } }
+@media (max-height:480px) and (pointer:coarse) { body.is-playing .volume-control { bottom: 65px; } }
+
+.level-badge { position: fixed; z-index: 5; top: max(80px, calc(env(safe-area-inset-top) + 66px)); left: 50%; transform: translateX(-50%); color: #7b61ff; font-size: 12px; font-weight: 800; pointer-events: none; white-space: nowrap; }
+.level-badge.hud--hidden { display: none; }
+@media (max-width:620px) { .level-badge { top: max(61px, calc(env(safe-area-inset-top) + 54px)); } }

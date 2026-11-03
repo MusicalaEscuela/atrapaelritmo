@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Atrapa el Ritmo · Musicala</title>
   <meta name="description" content="Mini juego arcade educativo de Musicala para practicar pulso, coordinación y precisión rítmica." />
   <meta name="theme-color" content="#f7f4ff" />
@@ -12,8 +12,13 @@
 </head>
 <body>
   <main class="app-shell" aria-label="Atrapa el Ritmo Musicala">
+    <label class="volume-control" for="music-volume">Volumen
+      <input id="music-volume" type="range" min="0" max="100" step="1" value="85" aria-label="Volumen del juego" />
+      <output id="volume-value" for="music-volume">85%</output>
+    </label>
     <section id="game-root" class="game-root" aria-label="Juego"></section>
 
+    <div id="level-badge" class="level-badge hud--hidden"></div>
     <section id="hud" class="hud hud--hidden" aria-label="Estado de partida">
       <div class="hud__metric"><span>Puntos</span><strong data-hud="score">0</strong></div>
       <div class="hud__metric hud__metric--combo"><span>Combo</span><strong data-hud="combo">x0</strong></div>
@@ -21,11 +26,12 @@
       <div class="hud__metric"><span>Fallos</span><strong data-hud="misses">0</strong></div>
     </section>
 
+    <div class="run-track" aria-hidden="true"><div id="run-progress"></div></div>
     <section id="touch-controls" class="touch-controls" aria-label="Controles táctiles">
-      <button type="button" data-lane="0">A</button>
-      <button type="button" data-lane="1">S</button>
-      <button type="button" data-lane="2">D</button>
-      <button type="button" data-lane="3">F</button>
+      <button type="button" data-lane="0" aria-label="Pulso 1">●</button>
+      <button type="button" data-lane="1" aria-label="Pulso 2">◆</button>
+      <button type="button" data-lane="2" aria-label="Pulso 3">▲</button>
+      <button type="button" data-lane="3" aria-label="Pulso 4">✦</button>
     </section>
   </main>
 
