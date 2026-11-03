@@ -9,13 +9,18 @@ export function levelSettings(difficultyKey, value = 1) {
   const key = Object.hasOwn(CONFIG.difficulties, difficultyKey) ? difficultyKey : "normal";
   const base = CONFIG.difficulties[key];
   const progress = level - 1;
+  const limits = {
+    easy: { maxBpm: 132, minFall: 0.95, startNotes: 3, maxNotes: 10 },
+    normal: { maxBpm: 152, minFall: 0.85, startNotes: 5, maxNotes: 11 },
+    hard: { maxBpm: 168, minFall: 0.75, startNotes: 6, maxNotes: 12 }
+  }[key];
   return {
     ...base, level,
-    bpm: base.bpm + Math.min(36, progress * 3),
-    bars: base.bars + Math.min(4, Math.floor(progress / 3)) * 2,
-    fallDuration: Math.max(1.05, base.fallDuration - Math.min(0.6, progress * 0.045)),
-    rhythmKey: key === "easy" ? (level >= 9 ? "hard" : level >= 5 ? "normal" : "easy")
-      : key === "normal" && level >= 5 ? "hard" : key,
+    bpm: Math.min(limits.maxBpm, base.bpm + progress * 8),
+    bars: base.bars + Math.min(2, Math.floor(progress / 4)) * 2,
+    fallDuration: Math.max(limits.minFall, base.fallDuration - progress * 0.14),
+    notesPerBar: Math.min(limits.maxNotes, limits.startNotes + progress),
+    rhythmKey: key,
     variation: progress
   };
 }

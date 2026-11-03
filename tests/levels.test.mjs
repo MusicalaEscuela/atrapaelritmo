@@ -17,8 +17,8 @@ test("levels gradually increase tempo and duration with bounded speeds", () => {
     assert.ok(second.bpm > first.bpm);
     assert.ok(second.fallDuration < first.fallDuration);
     assert.ok(later.bars > first.bars);
-    assert.ok(levelSettings(difficulty, 999).bpm <= first.bpm + 36);
-    assert.ok(levelSettings(difficulty, 999).fallDuration >= 1.05);
+    assert.ok(levelSettings(difficulty, 999).bpm <= 168);
+    assert.ok(levelSettings(difficulty, 999).fallDuration >= 0.75);
   }
 });
 
@@ -30,7 +30,7 @@ test("charts remain aligned to musical subdivisions at later levels", () => {
     for (const note of plan.notes) {
       assert.ok(note.targetTime > previous);
       assert.ok(note.lane >= 0 && note.lane < 4);
-      const step = (note.targetTime - plan.countIn) / (plan.beat / 2);
+      const step = (note.targetTime - plan.countIn) / (plan.beat / 4);
       assert.ok(Math.abs(step - Math.round(step)) < 1e-8);
       assert.ok(Math.abs(note.targetTime - note.spawnTime - plan.fallDuration) < 1e-8);
       previous = note.targetTime;
@@ -74,4 +74,32 @@ test("unavailable or malformed storage does not stop play", async () => {
   assert.equal(clean.getUnlockedLevel("normal"), 2);
   assert.equal(saveBestScore(1200), 1200);
   assert.equal(getBestScore(), 1200);
+});
+
+
+test("each early level measurably increases required taps per second in all modes", () => {
+  for (const difficulty of ["easy", "normal", "hard"]) {
+    let previousRate = 0;
+    for (let level = 1; level <= 6; level++) {
+      const plan = generatePattern(difficulty, level);
+      const rate = plan.notes.length / (plan.totalBeats * plan.beat);
+      if (level > 1) assert.ok(rate > previousRate * 1.10, `${difficulty} level ${level}: ${rate} vs ${previousRate}`);
+      previousRate = rate;
+      if (level > 1) {
+        assert.ok(plan.notes.filter(n => n.targetTime < plan.countIn + 4 * plan.beat).length >= levelSettings(difficulty, level).notesPerBar);
+        assert.equal(new Set(plan.notes.slice(0,4).map(n => n.lane)).size, 4);
+        for (let i=1;i<plan.notes.length;i++) assert.notEqual(plan.notes[i].lane, plan.notes[i-1].lane);
+      }
+    }
+  }
+});
+
+test("advanced levels include musical sixteenth runs without simultaneous notes", () => {
+  for (const difficulty of ["easy", "normal", "hard"]) {
+    const plan = generatePattern(difficulty, 8);
+    assert.ok(plan.notes.some(note => !Number.isInteger(note.stepInBar)));
+    for (let i=1;i<plan.notes.length;i++) {
+      assert.ok(plan.notes[i].targetTime - plan.notes[i-1].targetTime >= plan.beat / 4 - 1e-8);
+    }
+  }
 });

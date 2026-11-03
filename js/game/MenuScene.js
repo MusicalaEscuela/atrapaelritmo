@@ -66,7 +66,7 @@ export default class MenuScene extends Phaser.Scene {
       }, key === this.difficulty ? 0x7b61ff : 0xffffff, key === this.difficulty ? "#ffffff" : "#253053", step - 10);
     });
     const settings = levelSettings(this.difficulty, this.level);
-    this.add.text(cx, y + 43, `Nivel ${this.level} · ${settings.bpm} BPM · Sigue el ritmo`, {
+    this.add.text(cx, y + 43, `Nivel ${this.level} · ${settings.bpm} BPM · ${settings.notesPerBar} notas/compás`, {
       fontSize: `${width < 400 ? 11 : 13}px`, color: "#64708f"
     }).setOrigin(0.5);
     this.createButton(cx, y + 96, `▶  Jugar nivel ${this.level}`, () => {

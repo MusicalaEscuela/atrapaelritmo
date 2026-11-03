@@ -1,5 +1,5 @@
 import { getBestScore, saveBestScore, unlockNextLevel } from "../storage/scores.js";
-import { passedLevel } from "../rhythm/levels.js";
+import { passedLevel, levelSettings } from "../rhythm/levels.js";
 
 export default class ResultsScene extends Phaser.Scene {
   constructor() { super("ResultsScene"); }
@@ -31,7 +31,8 @@ export default class ResultsScene extends Phaser.Scene {
       wordWrap: { width: width - 32 }
     }).setOrigin(0.5);
     label(72, this.passed ? `¡Nivel ${this.level} superado!` : `Nivel ${this.level} · ¡Otra vez!`, Math.min(42, width * 0.085), "#7b61ff");
-    label(120, this.passed ? `Desbloqueaste el nivel ${this.level + 1}` : "Se alcanzó el límite de fallos. ¡Sigue practicando!", 17, "#64708f");
+    const next = levelSettings(this.difficulty, this.level + 1);
+    label(120, this.passed ? `Siguiente: ${next.bpm} BPM · ${next.notesPerBar} notas por compás` : "Se alcanzó el límite de fallos. ¡Sigue practicando!", 17, "#64708f");
     if (this.isRecord) label(155, "✦ ¡Nuevo récord!", 18, "#e8577f");
     const rows = [
       ["Puntaje", Math.round(this.results.score).toLocaleString("es-CO")],

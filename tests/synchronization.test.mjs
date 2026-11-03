@@ -24,8 +24,8 @@ test("audible clock compensates device latency and timestamps input events", () 
 });
 
 test("every chart note schedules exactly one melody sound at its target, on all difficulties", () => {
-  for (const difficulty of ["easy", "normal", "hard"]) {
-    const plan = generatePattern(difficulty);
+  for (const difficulty of ["easy", "normal", "hard"]) for (const level of [1, 4, 8]) {
+    const plan = generatePattern(difficulty, level);
     const played = [];
     audioEngine.scheduleBell = (time, frequency) => played.push({time, frequency});
     audioEngine.ctx.currentTime = 0;

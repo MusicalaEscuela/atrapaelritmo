@@ -49,6 +49,24 @@ function templateForBar(difficultyKey, section, barIndex) {
   return options[barIndex % options.length];
 }
 
+// Fill the eighth-note grid first, then add short sixteenth-note runs.
+// Every higher level starts with its full density, including the opening bars.
+function levelTemplate(base, difficulty, bar) {
+  if (difficulty.level === 1) return base;
+  const eighths = [0, 4, 2, 6, 3, 7, 1, 5];
+  const bursts = bar % 2 ? [6.5, 2.5, 7.5, 3.5] : [2.5, 6.5, 3.5, 7.5];
+  const steps = new Set(base);
+  for (const step of [...eighths, ...bursts]) {
+    if (steps.size >= difficulty.notesPerBar) break;
+    steps.add(step);
+  }
+  return [...steps].sort((a, b) => a - b);
+}
+
+const LEVEL_PHRASES = [
+  [0, 2, 1, 3], [0, 1, 2, 3], [3, 1, 2, 0], [1, 3, 0, 2]
+];
+
 function motifForBar(section, barIndex) {
   const namesBySection = {
     intro: ["stable", "centerSides"],
@@ -91,12 +109,17 @@ export function generatePattern(difficultyKey, level = 1) {
 
   for (let bar = 0; bar < difficulty.bars; bar += 1) {
     const section = sectionForBar(bar, difficulty.bars);
-    const template = templateForBar(difficulty.rhythmKey, section, bar + difficulty.variation);
+    const template = levelTemplate(templateForBar(difficulty.rhythmKey, section, bar + difficulty.variation), difficulty, bar);
     const motif = motifForBar(section, bar + difficulty.variation);
 
     template.forEach((stepInBar, noteIndex) => {
       const globalStep = bar * 8 + stepInBar;
-      const lane = chooseLane({ stepInBar, noteIndex, motif, previousLane, repeatCount });
+      let lane = chooseLane({ stepInBar, noteIndex, motif, previousLane, repeatCount });
+      if (difficulty.level > 1) {
+        const phrase = LEVEL_PHRASES[(bar + difficulty.variation) % LEVEL_PHRASES.length];
+        lane = phrase[noteIndex % phrase.length];
+        if (lane === previousLane) lane = (lane + 1) % CONFIG.lanes.length;
+      }
       repeatCount = lane === previousLane ? repeatCount + 1 : 0;
       previousLane = lane;
 
