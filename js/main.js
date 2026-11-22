@@ -47,9 +47,27 @@ volumeInput.addEventListener("input", () => {
   volumeValue.value = `${volumeInput.value}%`;
 });
 
-document.addEventListener("open-rhythm-studio", () => {
-  const calibration = game.scene.getScene("CalibrationScene");
-  if (calibration?.scene.isActive()) {
-    calibration.scene.start("MenuScene", { difficulty: calibration.difficulty, level: calibration.level });
+// Leaving the classic game: stop its music and freeze Phaser so it doesn't compete with the studio.
+function sendClassicToMenu() {
+  const active = game.scene.getScenes(true)[0];
+  audioEngine.stop();
+  if (active && active.scene.key !== "MenuScene") {
+    game.events.emit("playing-state", false);
+    active.scene.start("MenuScene", { difficulty: active.difficulty, level: active.level });
   }
+}
+
+document.addEventListener("open-rhythm-studio", () => {
+  sendClassicToMenu();
+  // Let the scene switch render once, then stop the Phaser loop while the studio is open.
+  requestAnimationFrame(() => game.loop.sleep());
+});
+
+document.addEventListener("close-rhythm-studio", () => {
+  game.loop.wake();
+});
+
+// A backgrounded run loses sync (timers throttle while audio keeps going): end it cleanly.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && game.scene.isActive("GameScene")) sendClassicToMenu();
 });

@@ -63,7 +63,7 @@ export class StudioSound {
   }
 
   stop() {
-    this.nodes.forEach(source => source.stop());
+    this.nodes.forEach(source => { try { source.stop(); } catch { /* not started */ } });
     this.nodes.clear();
   }
 

@@ -1,6 +1,7 @@
 import { SONGS, PARTS } from "./songs.js";
 import { StudioSound } from "./sound.js";
 import { MODES, makeSession, closestNote, HIT_WINDOW, PERFECT_WINDOW, measure } from "./session.js";
+import { audioEngine } from "../audio/audioEngine.js";
 import { getCalibrationOffset } from "../storage/scores.js";
 
 const studio = document.querySelector("#studio");
@@ -46,6 +47,7 @@ function stop() {
   run = undefined;
   cancelAnimationFrame(frame);
   clearInterval(timer);
+  timer = undefined;
   sound.stop();
   held.clear();
   ui.pads.querySelectorAll("button").forEach(button => button.classList.remove("pressed"));
@@ -129,6 +131,7 @@ async function start() {
   ui.start.disabled = true;
   ui.notice.textContent = "Cargando instrumentos…";
   try {
+    audioEngine.stop();
     await sound.prepare([...plan.backing, ...plan.targets]);
     if (request !== token) return;
     if (sound.ctx.state !== "running") throw new Error("Audio suspendido");
@@ -161,7 +164,7 @@ function schedule() {
   while (run.index < backing.length) {
     const note = backing[run.index];
     const time = run.start + note.at;
-    if (time > now + .12) break;
+    if (time > now + .2) break;
     if (time >= now - .03) sound.play(note, time);
     run.index++;
   }
@@ -286,6 +289,7 @@ ui.classic.addEventListener("click", () => {
   stop();
   studio.hidden = true;
   classic.hidden = false;
+  document.dispatchEvent(new Event("close-rhythm-studio"));
   window.dispatchEvent(new Event("resize"));
 });
 document.querySelector("#open-studio").addEventListener("click", () => {

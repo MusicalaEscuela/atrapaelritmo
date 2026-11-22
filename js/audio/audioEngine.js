@@ -28,7 +28,7 @@ class AudioEngine {
     this.countInBeats = 4;
     this.totalBeats = 0;
     this.nextBeatIndex = 0;
-    this.lookahead = 0.12;
+    this.lookahead = 0.2;
     this.energyLevel = 0;
     this.energyDropUntil = 0;
   }
@@ -92,7 +92,7 @@ class AudioEngine {
     this.nextNoteIndex = 0;
     this.energyLevel = 0;
     this.energyDropUntil = 0;
-    this.startTime = this.now() + 0.08;
+    this.startTime = this.now() + 0.15;
     this.isPlaying = true;
     this.schedulerId = window.setInterval(() => this.schedulerTick(), 25);
     this.schedulerTick();
