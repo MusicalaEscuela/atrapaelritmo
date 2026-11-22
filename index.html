@@ -9,9 +9,12 @@
   <meta name="color-scheme" content="light only" />
   <link rel="icon" href="logo.png" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="js/studio/studio.css" />
 </head>
 <body>
   <main class="app-shell" aria-label="Atrapa el Ritmo Musicala">
+    <button type="button" id="open-studio">Estudio de ritmo</button>
+    <a class="studio-download" href="Atrapa-el-Ritmo.apk" download>Instalar en Android</a>
     <label class="volume-control" for="music-volume">Volumen
       <input id="music-volume" type="range" min="0" max="100" step="1" value="85" aria-label="Volumen del juego" />
       <output id="volume-value" for="music-volume">85%</output>
@@ -35,7 +38,71 @@
     </section>
   </main>
 
+  <main class="studio" id="studio" aria-label="Estudio de ritmo" hidden>
+    <div class="studio-shell">
+      <header class="studio-heading">
+        <div>
+          <p class="studio-brand">Musicala · Atrapa el Ritmo</p>
+          <h1>Estudio de ritmo</h1>
+        </div>
+        <button type="button" data-studio="classic">Modo clásico</button>
+      </header>
+
+      <section class="studio-panel" data-studio="setup" aria-label="Configurar partida">
+        <div class="studio-modes" data-studio="modes" aria-label="Modo de juego"></div>
+        <p class="studio-details" data-studio="help"></p>
+        <div class="studio-fields">
+          <label class="studio-song">Canción <select data-studio="song"></select><small class="studio-details" data-studio="songInfo"></small></label>
+          <label data-studio="partLabel">Instrumento <select data-studio="part"></select></label>
+          <label>Tempo <select data-studio="speed">
+            <option value=".5">50 %</option>
+            <option value=".65">65 %</option>
+            <option value=".8">80 %</option>
+            <option value="1" selected>100 %</option>
+          </select></label>
+          <label data-studio="barsLabel">Compases <select data-studio="bars">
+            <option value="0">1–2</option><option value="2">3–4</option>
+            <option value="4">5–6</option><option value="6">7–8</option>
+          </select></label>
+          <label class="studio-check" data-studio="blindLabel"><input type="checkbox" data-studio="blind" /> Repetir solo de oído</label>
+        </div>
+        <details class="studio-mix">
+          <summary>Mezcla de audio</summary>
+          <label>Banda <input type="range" min="0" max="1" value=".78" step=".02" data-studio="band" /></label>
+          <label>Mi instrumento <input type="range" min="0" max="1" value=".86" step=".02" data-studio="player" /></label>
+        </details>
+        <div class="studio-actions">
+          <button class="studio-primary" type="button" data-studio="start">Jugar</button>
+          <a class="studio-app-link" href="Atrapa-el-Ritmo.apk" download>Instalar en Android</a>
+          <p class="studio-details studio-notice" role="status" data-studio="notice"></p>
+        </div>
+        <p class="studio-details">Usa los pads o A · S · D · F. Toca juntas las notas que coinciden, mantén las que tienen cola y afina el tiempo de las que llevan aro para marcar el acento.</p>
+      </section>
+
+      <section class="studio-play" data-studio="play" hidden aria-label="Partida">
+        <div class="studio-play-top">
+          <div><h2 data-studio="title"></h2><p class="studio-details" data-studio="roundInfo"></p></div>
+          <button type="button" data-studio="end">Terminar</button>
+        </div>
+        <div class="studio-progress"><strong data-studio="phase"></strong><span data-studio="feedback"></span></div>
+        <div class="studio-track" data-studio="track" aria-hidden="true"></div>
+        <div class="studio-pads" data-studio="pads" aria-label="Pads"></div>
+        <p class="studio-details studio-loop" data-studio="loopResult"></p>
+      </section>
+
+      <section class="studio-panel" data-studio="results" hidden aria-label="Resultados">
+        <h2>Resultado</h2>
+        <p class="studio-result" data-studio="summary"></p>
+        <div class="studio-actions">
+          <button class="studio-primary" type="button" data-studio="replay">Volver a tocar</button>
+          <button type="button" data-studio="configure">Cambiar canción o modo</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/studio/studio.js"></script>
 </body>
 </html>

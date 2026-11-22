@@ -1,0 +1,47 @@
+plugins {
+    id 'com.android.application' version '8.9.1'
+}
+
+android {
+    namespace 'co.musicala.atrapaelritmo'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'co.musicala.atrapaelritmo'
+        minSdk 24
+        targetSdk 34
+        versionCode 2
+        versionName '2.0'
+    }
+
+    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/game-assets')
+}
+
+def webRoot = rootProject.projectDir.parentFile
+def bundleGame = tasks.register('bundleGame', Sync) {
+    into layout.buildDirectory.dir('generated/game-assets')
+    from(webRoot) {
+        include 'styles.css', 'logo.png', 'js/**', 'assets/studio/*.wav'
+        exclude 'js/main.js'
+    }
+    from(webRoot) {
+        include 'js/main.js'
+        // The 2D game does not need WebGL, which can corrupt shapes in Android WebView.
+        filter { line -> line.replace('type: Phaser.AUTO,', 'type: Phaser.CANVAS,') }
+        filteringCharset = 'UTF-8'
+    }
+    from(webRoot) {
+        include 'index.html'
+        filter { line ->
+            line.replace('https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js', 'vendor/phaser.min.js').replace('<body>', '<body data-platform="android">')
+        }
+        filteringCharset = 'UTF-8'
+    }
+    from(rootProject.file('vendor')) {
+        into 'vendor'
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn bundleGame
+}

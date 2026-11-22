@@ -46,3 +46,10 @@ volumeInput.addEventListener("input", () => {
   audioEngine.setVolume(Number(volumeInput.value) / 100);
   volumeValue.value = `${volumeInput.value}%`;
 });
+
+document.addEventListener("open-rhythm-studio", () => {
+  const calibration = game.scene.getScene("CalibrationScene");
+  if (calibration?.scene.isActive()) {
+    calibration.scene.start("MenuScene", { difficulty: calibration.difficulty, level: calibration.level });
+  }
+});
